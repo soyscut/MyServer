@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<serviceModel xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" name="WindowsAzure7" generation="1" functional="0" release="0" Id="993abc64-e651-4459-ad1a-9a8dd55b1a4a" dslVersion="1.2.0.0" xmlns="http://schemas.microsoft.com/dsltools/RDSM">
+<serviceModel xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" name="WindowsAzure7" generation="1" functional="0" release="0" Id="8d008b20-db0b-40e9-93c4-e2f85fb634a4" dslVersion="1.2.0.0" xmlns="http://schemas.microsoft.com/dsltools/RDSM">
   <groups>
     <group name="WindowsAzure7Group" generation="1" functional="0" release="0">
       <componentports>
@@ -192,9 +192,9 @@
     </group>
   </groups>
   <implements>
-    <implementation Id="4b8465be-e6b5-4284-a81f-f1efc2c7c8d5" ref="Microsoft.RedDog.Contract\ServiceContract\WindowsAzure7Contract@ServiceDefinition">
+    <implementation Id="a84ecb3e-d51b-4041-aab0-ab51b84a1a9b" ref="Microsoft.RedDog.Contract\ServiceContract\WindowsAzure7Contract@ServiceDefinition">
       <interfacereferences>
-        <interfaceReference Id="eb22892d-a95b-4237-a98b-19925cf0d2ee" ref="Microsoft.RedDog.Contract\Interface\MintRestApi:Endpoint1@ServiceDefinition">
+        <interfaceReference Id="bf47513b-a2bc-45d8-84eb-450fdbd07b73" ref="Microsoft.RedDog.Contract\Interface\MintRestApi:Endpoint1@ServiceDefinition">
           <inPort>
             <inPortMoniker name="/WindowsAzure7/WindowsAzure7Group/MintRestApi:Endpoint1" />
           </inPort>

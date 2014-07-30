@@ -793,6 +793,7 @@ namespace MintRestApi
         //    }
         //}
 
+        //这个是怎么传出去的? 不返回string
         public HistoryItem[] getHistory(string email, string token_value)
         {
             try
@@ -948,6 +949,7 @@ namespace MintRestApi
         //    }
         //}
 
+        //根据交易类型来求该类型的和，比如转出，转入，购买等，返回string表示的数
         public string getSumByTransType(string email, string transtype)
         {
             try
@@ -959,6 +961,7 @@ namespace MintRestApi
                     using (SqlCommand command = conn.CreateCommand())
                     {
                         conn.Open();
+                        //根据交易类型在数据库中查询
                         command.CommandText = "get_SumByTransType";
                         command.Parameters.AddWithValue("@email", email);
                         command.Parameters.AddWithValue("@transtype", transtype);
@@ -994,6 +997,8 @@ namespace MintRestApi
             }
         }
 
+        //下面的三个函数直接根据功能，向上面的函数传人相应参数即可   
+        
         public string getSendTotalCSV(string email, string token_value)
         {
             try
@@ -1075,13 +1080,13 @@ namespace MintRestApi
                 throw e;
             }
         }
-
+        //token是商品的某项属性，token_value貌似是live的 access_token，而在商品的相关操作中，没有使用过
         public string GetParseToken(string token, string token_value)
         {
             string res = null;
             try
             {
-                res = parse_token(token, token_value)[0];
+                res = parse_token(token, token_value).FirstOrDefault;
                 return res;
             }
             catch (Exception e)
@@ -1089,13 +1094,16 @@ namespace MintRestApi
                 return null;
             }
         }
-
+        //这个id就是商品的编号，那token_value是什么呢？ 这个商品和交易历史有什么关系？ 
+        //为啥交易历史 和 商品的 定义基本一样？ 商品里面还有detailitems?
+        // goodtype有哪些？ 看到的有“order”
         public Goods GetGoodsDetailByID(string type, string id, string token_value)
         {
             try
             {
                 ArrayList list = new ArrayList();
                 Goods res = new Goods();
+                //通过id和token_value返回对应商品
                 res = GetGoodsByID(id, token_value);
                 DetailItem[] detailitem = GetDetailItemByEXID(type, id, token_value);
                 res.detailitem = detailitem;
@@ -1116,6 +1124,7 @@ namespace MintRestApi
                 ArrayList list = new ArrayList();
                 Goods res = new Goods();
                 string[] parse_result = parse_token(token, token_value);
+                //parse_result 解析出来的结果
                 string id = parse_result[0];
                 string type = parse_result[1];
                 res = GetGoodsByID(id,token_value);
@@ -1131,6 +1140,7 @@ namespace MintRestApi
             }
         }
 
+        //只用了id,没有用token_value
         public Goods GetGoodsByID(string id, string token_value)
         {
             try
@@ -1172,6 +1182,7 @@ namespace MintRestApi
             }
         }
 
+        //只用了token,没有用token_value,
         public string[] parse_token(string token, string token_value)
         {
             try
@@ -1211,6 +1222,7 @@ namespace MintRestApi
             }
         }
 
+        // 有用到extend id??
         public DetailItem[] GetDetailItemByEXID(string type, string id, string token_value)
         {
             try
@@ -1259,7 +1271,7 @@ namespace MintRestApi
                 throw e;
             }
         }
-
+        //根据相应的token,id,goodstype，插入到数据库中
         public int insertToken(string token, string id, string goodstype)
         {
             try
@@ -1363,6 +1375,7 @@ namespace MintRestApi
             }
         }
 
+        //Commit 什么？ 这个函数是干嘛的？
         public int commitOrderHistory(string id, string email, string transtype, string status, string source)
         {
             try
@@ -1393,6 +1406,7 @@ namespace MintRestApi
             }
         }
 
+        //为什么会需要更改orderhistory?
         public int updateOrderHistory(string id, string email, string transtype, string status, string source)
         {
             try
@@ -1423,6 +1437,7 @@ namespace MintRestApi
             }
         }
 
+        //根据订单id，得到某一项订单
         public OrderHistory GetOrder(string email, string id, string token_value)
         {
             try
@@ -1475,6 +1490,7 @@ namespace MintRestApi
             }
         }
 
+        //用某一个email账户，返回所有订单
         public OrderHistory[] GetOrderList(string email, string token_value)
         {
             try
