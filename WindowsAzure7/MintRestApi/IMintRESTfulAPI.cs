@@ -121,7 +121,7 @@ namespace MintRestApi
         string BTCResponse(result res);
 
         [OperationContract]
-        [WebInvoke(UriTemplate = "BTCResponseOp", Method = "POST")]
+        [WebInvoke(UriTemplate = "BTCResponseOp", Method ="POST")]
         string BTCResponseString(Stream stm);
 
         [OperationContract]

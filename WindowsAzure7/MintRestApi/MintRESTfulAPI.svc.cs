@@ -141,6 +141,7 @@ namespace MintRestApi
 
         //不知道这一部分是干嘛的？？？
         #region Account Builder
+        //Identiy在后台式什么东西？
         private Identity BuildIdentityFromAccountWithPuid(string puid)
         {
             return new Identity
@@ -160,7 +161,7 @@ namespace MintRestApi
                 }
             };
         }
-
+        //PIIdentity???
         private PIType.Identity BuildPIIdentityFromAccountWithPuid(string puid)
         {
             return new PIType.Identity
@@ -178,7 +179,7 @@ namespace MintRestApi
                 }
             };
         }
-
+        // CTIdentity????
         private CTType.Identity BuildCTIdentityFromAccountWithPuid(string puid)
         {
             return new CTType.Identity
@@ -200,6 +201,7 @@ namespace MintRestApi
         #endregion
 
         #region Account Service
+        //分成Low & High的目的是什么？
         public int getHighId(string PUID)
         {
             long temp = Int64.Parse(PUID);
@@ -259,7 +261,7 @@ namespace MintRestApi
                 CTPApiClient client = new CTPApiClient(config);
 
                 int attempt = 0;
-                //不是说是存了十几个号，为什么这里还要到后台去获取？？？？？？？？？
+                //不是说是存了十几个号，为什么这里还要到后台去获取？    A： 数据库中存的是puid,这里是从数据库中得到puid后，用它到后台获取accountid
                 var res = client.GetAccount(request);
                 while (!(res.Ack == AckCodeType.Success) && (attempt <= RetryTime))
                 {
@@ -346,7 +348,8 @@ namespace MintRestApi
                 throw e;
             }
         }
-        //这个accountid 是什么？ 干嘛的？ 不是已经有puid了么？
+        //这个accountid 是什么？ 干嘛的？ 不是已经有puid了么？ 每个账号不止一个accountid?
+        //A: acountid是跟puid差不多的，都是后台账户的id,但是有两套系统，所以有两种，且两种都需要
         public string GetAccountWithPuid(string puid)
         {
             try
@@ -793,7 +796,7 @@ namespace MintRestApi
         //    }
         //}
 
-        //这个是怎么传出去的? 不返回string
+        //这个是怎么传出去的? 不返回string  A:Serialization这是WCF自己来做的，Rest是在WCF之上的
         public HistoryItem[] getHistory(string email, string token_value)
         {
             try
@@ -1080,13 +1083,24 @@ namespace MintRestApi
                 throw e;
             }
         }
+        /**********************商品及交易等相关逻辑******************
+         * 总共有两种跟交易有关的项目（也是goodstype里面的内容：order和goods),区别是
+         * goods是自己的商城(windows store)的商品，我们通常只用存一个id,然后到商城中即可得到全部的信息。  
+         * order通常用于第三方商城的订单，类似于网上买火车票用wallet来付， 商城会产生一个order,这个order会包含一些相关但不是全部
+         * 的信息，创建订单后，再有用户client去commit,完成订单。
+         * Token类似于一种映射用短地址，因为我们要扫二维码，那么二维码上都是一些字符串，能够反映商品或者订单的信息，为了简短和安全性考虑
+         * 不用原始的信息，而映射到一个地址上，继而产生二维码
+         * 凡是有content的都需要产生token,目前只做了商品的而没有订单的，所以可以继续做
+         */
+
+
         //token是商品的某项属性，token_value貌似是live的 access_token，而在商品的相关操作中，没有使用过
         public string GetParseToken(string token, string token_value)
         {
             string res = null;
             try
             {
-                res = parse_token(token, token_value).FirstOrDefault;
+                res = parse_token(token, token_value)[0];
                 return res;
             }
             catch (Exception e)
@@ -1094,7 +1108,7 @@ namespace MintRestApi
                 return null;
             }
         }
-        //这个id就是商品的编号，那token_value是什么呢？ 这个商品和交易历史有什么关系？ 
+        //这个id就是商品的编号，那token_value是什么呢？A: token_value是验证live的 这个商品和交易历史有什么关系？ 
         //为啥交易历史 和 商品的 定义基本一样？ 商品里面还有detailitems?
         // goodtype有哪些？ 看到的有“order”
         public Goods GetGoodsDetailByID(string type, string id, string token_value)
@@ -1223,6 +1237,7 @@ namespace MintRestApi
         }
 
         // 有用到extend id??
+        //exid是用于一个大订单里面有很多detailitem的，每个item里面有一个exid，是外键，指向他们所属的大订单
         public DetailItem[] GetDetailItemByEXID(string type, string id, string token_value)
         {
             try
@@ -1652,6 +1667,7 @@ namespace MintRestApi
 
         #region PI Service
         //return a list of Payment Instruments registed under the given email
+        //这里namespace是怎么命名别名的？
         public PIType.PaymentInstrument[] GetPI(string email, string token_value)
         {
             try
@@ -1662,7 +1678,9 @@ namespace MintRestApi
                     return null;
                 }
                 var puid = EmailToPuid(email);
+                //不知道这个accountid干嘛的？？
                 var accountId = GetAccountWithPuid(puid);
+                //注意这里新建了一个GetPaymentInstrument的对象，专门用于请求PI
                 var request = new PIType.GetPaymentInstrumentsInput
                 {
                     CallerInfo = new PIType.CallerInfo
@@ -1702,6 +1720,7 @@ namespace MintRestApi
 
                 if (res.Ack == PIType.AckCodeType.Success)
                 {
+                    
                     return res.PaymentInstrumentSet;
                 }
                 else
@@ -1762,6 +1781,8 @@ namespace MintRestApi
                 {
                     foreach(var pi in res.PaymentInstrumentSet) 
                     {
+                        //这是一个什么类型。。。????
+                        //pi.Type有很多，比如store value, bitcoin, ebay等，是指支付手段，storedvalue是指用CSV
                         if (pi.Type == "StoredValuePaymentInstrument")
                         {
                             return pi;
@@ -1786,14 +1807,17 @@ namespace MintRestApi
             XmlSerializerNamespaces ns = new XmlSerializerNamespaces();
             if (string.IsNullOrWhiteSpace(prefix))
             {
+                //这里nameSpace是什么，干嘛用的？？
                 ns.Add(string.Empty, nameSpace);
             }
             else
             {
                 ns.Add(prefix, nameSpace);
             }
-
+            
             var serializer = new XmlSerializer(obj.GetType());
+            
+            //Check how this is work!!
             using (var stream = new MemoryStream())
             {
                 serializer.Serialize(stream, obj, ns);
@@ -1813,6 +1837,7 @@ namespace MintRestApi
                 string skuReferenceXml = string.Empty;
                 string skuReferenceInfoXml = string.Empty;
                 string BstrPropertyXml = bstrPropertyXmlForMandateRefund;
+                //这是什么code
                 int ReasonCode = 252121094;
                 string currency = "USD";
                 var commentInfo = new CMATType.CommentInfo();
@@ -1854,6 +1879,7 @@ namespace MintRestApi
         {
             var res = new CTType.PurchaseStoredValueProductItemInput
             {
+                //这一堆字符串字面值都是怎么来的？？？？
                 RevenueInfo = new CTType.RevenueInfo
                 {
                     RevenueAllocationPercentage = 1.0m,
@@ -1898,6 +1924,7 @@ namespace MintRestApi
 
         public CTType.PurchaseBundleInput[] GenerateBundleInput(string SVPIId, decimal amount)
         {
+            //这是什么用法？这个重载是干嘛的？
             return new CTType.PurchaseBundleInput[1] { GenerateBundleInput(1, 1, SVPIId, amount) };
         }
 
@@ -1943,7 +1970,7 @@ namespace MintRestApi
         //email : to specify the account
         //paymentMethodID : the PIID of the paying PI, e.g. credit card
         //SVPIId : the 
-        //account : amount of SV to be bought
+        //account : amount of CSV to be bought
         public string Purchase(string email, string paymentMethodID, string amount, string token_value)
         {
             try
@@ -2557,6 +2584,7 @@ namespace MintRestApi
         }
 
         #region Receive Operation
+        //这个req是什么东西？什么样子的？
         public string ReceiveRequest(string email, string req, string token_value)
         {
             try
@@ -2573,6 +2601,7 @@ namespace MintRestApi
                         command.Parameters.AddWithValue("@req", req);
                         command.CommandType = CommandType.StoredProcedure;
                         int rowsAdded = command.ExecuteNonQuery();
+                        //为什么返回token,貌似token只是一个参数，在数据库操作中变化了？
                         res = token;
                     }
                 }
@@ -2585,6 +2614,7 @@ namespace MintRestApi
             }
         }
 
+        //和上面的有什么区别？
         public string GetReceiveRequest(string email, string token, string token_value)
         {
             try

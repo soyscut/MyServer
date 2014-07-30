@@ -41,7 +41,7 @@
     </LocalResources>
     <Contents>
       <Content destination=".\">
-        <SourceDirectory path="E:\Project\WindowsAzure7\WindowsAzure7\rcf\Debug\MintRestApiContent\" />
+        <SourceDirectory path="E:\Github\MyRestServer\WindowsAzure7\WindowsAzure7\rcf\Debug\MintRestApiContent\" />
       </Content>
     </Contents>
   </WebRole>
