@@ -14,6 +14,8 @@ using System.Collections;
 using System.Data.SqlClient;
 using System.Data;
 
+using System.Web;
+
 using System.Threading.Tasks;
 using System.IO;
 using System.Net;
@@ -120,7 +122,7 @@ namespace MintRestApi
 
         //验证accesstoken的正确性
         public bool verifyLive(string accesstoken, string email)
-        {
+        { 
             return true;
             try
             {
@@ -138,6 +140,136 @@ namespace MintRestApi
             }
             return false;
         }
+
+        public int verifyCookie(string email, ref string deviceID)
+        {
+            // RETURN status: 
+            // 0 verity success, need update;
+            // 1 verity fail, No this device, need create if token verified;
+            // 2 verity fail, Wrong email or date, need update if token verified
+            // -1 error, No device header
+            try
+            {
+                IncomingWebRequestContext request = WebOperationContext.Current.IncomingRequest;
+                WebHeaderCollection headers = request.Headers;
+
+                string query_id= null,query_email=null;
+                DateTime query_expire = DateTime.UtcNow;
+
+                if (headers["UDID"] != null)
+                {
+                    deviceID = headers["UDID"];
+
+                    //query in DB, If deviceID not exist or expire or not fit with the email, return false;   
+                    // only if the deviceID fit the email and the expire date, return true; Notice! return true , we should
+                    // update the expire date to nowtime.
+                    using (SqlConnection conn = new SqlConnection(connString2Builder.ToString()))
+                    {
+                        using (SqlCommand command = conn.CreateCommand())
+                        {
+                            conn.Open();
+                            command.CommandText = "querydeviceID";
+                            command.Parameters.AddWithValue("@id", deviceID);
+                            command.CommandType = CommandType.StoredProcedure;
+                            SqlDataReader reader = command.ExecuteReader();
+                            while (reader.Read())
+                            {
+                                query_id = reader["deviceID"].ToString();
+                                query_email = reader["email"].ToString();
+                                query_expire = Convert.ToDateTime(reader["expire"]);
+                            }
+
+                            if (query_id == null) return 1;
+                            else if (query_email != email || query_expire <= DateTime.UtcNow)
+                                return 2;
+                            else return 0;
+
+                        }
+                    }
+                         
+
+                }
+
+                return -1;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+
+            return -1;
+        }
+
+        public bool veritySecurity(string accesstoken, string email)
+        {
+            try
+            {
+                string deviceID = null;
+
+                int status = verifyCookie(email, ref deviceID);
+
+                using (SqlConnection conn = new SqlConnection(connString2Builder.ToString()))
+                {
+                    using (SqlCommand command = conn.CreateCommand())
+                    {
+                        conn.Open();
+                        if (status == 0)
+                        {
+                       
+                            command.CommandText = "update_deviceID";
+                            command.Parameters.AddWithValue("@id", deviceID);
+                            command.Parameters.AddWithValue("@email", email);
+                            command.Parameters.AddWithValue("ExpireDate", DateTime.UtcNow.AddMinutes(30));
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.ExecuteNonQuery();
+                            conn.Close();
+                            return true;
+                        }
+                        else
+                        {
+                            bool flag = verifyLive(accesstoken, email);
+                            
+                            if (!flag) return false;
+                            else
+                            {
+                                if (status == 1)
+                                {
+                                    command.CommandText = "insert_deviceID";
+                                    command.Parameters.AddWithValue("@id", deviceID);
+                                    command.Parameters.AddWithValue("@email", email);
+                                    command.Parameters.AddWithValue("ExpireDate", DateTime.UtcNow.AddMinutes(30));
+                                    command.CommandType = CommandType.StoredProcedure;
+                                    command.ExecuteNonQuery();
+                                    conn.Close();
+                                }
+                                else if (status == 2)
+                                {
+                                    command.CommandText = "update_deviceID";
+                                    command.Parameters.AddWithValue("@id", deviceID);
+                                    command.Parameters.AddWithValue("@email", email);
+                                    command.Parameters.AddWithValue("ExpireDate", DateTime.UtcNow.AddMinutes(30));
+                                    command.CommandType = CommandType.StoredProcedure;
+                                    command.ExecuteNonQuery();
+                                    conn.Close();
+                                }
+
+
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+
+            return false;
+
+        }
+        
 
         //不知道这一部分是干嘛的？？？
         #region Account Builder
@@ -219,11 +351,9 @@ namespace MintRestApi
 
         public string GetAccount(string email, string token_value)
         {
-            //var version = WebOperationContext.Current.IncomingRequest.Headers["User-Agent"];
-            //return version;
             try
             {
-                bool trusted = verifyLive(token_value, email);
+                bool trusted = veritySecurity(token_value, email);
                 if (!trusted)
                 {
                     return "Untrusted Client Request";
@@ -1668,10 +1798,15 @@ namespace MintRestApi
         #region PI Service
         //return a list of Payment Instruments registed under the given email
         //这里namespace是怎么命名别名的？
+        //这个函数现在调用会抛出异常！！？？？
+        //从这个函数返回的xml看不出多种PI
         public PIType.PaymentInstrument[] GetPI(string email, string token_value)
         {
             try
             {
+                
+                string value = HttpContext.Current.Request.Headers["UDID"];
+
                 bool trusted = verifyLive(token_value, email);
                 if (!trusted)
                 {
@@ -1826,7 +1961,7 @@ namespace MintRestApi
                 return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
             }
         }
-
+        //这个函数是干嘛的？？？
         public string CreditPayment(string puid, string accountId, string amount_s)
         {
             try
@@ -1842,6 +1977,8 @@ namespace MintRestApi
                 string currency = "USD";
                 var commentInfo = new CMATType.CommentInfo();
                 commentInfo.CommentCode = AddArbitraryCreditOrChargeCommentCode;
+
+                //这是什么意思？ 这个函数是bitcoin的？
                 commentInfo.CommentText = "Fund csv by bitcoin";
                 var commentXml = Serialize(commentInfo);
                 string StoredValueLotExpirationDate = "2016-06-21T03:17:41";
@@ -1924,7 +2061,8 @@ namespace MintRestApi
 
         public CTType.PurchaseBundleInput[] GenerateBundleInput(string SVPIId, decimal amount)
         {
-            //这是什么用法？这个重载是干嘛的？
+            //这是什么用法？这个重载是干嘛的？ 为什么productnum写成1？一个bundle里面没有多个item的情况？
+            //bundle又具体是什么东西
             return new CTType.PurchaseBundleInput[1] { GenerateBundleInput(1, 1, SVPIId, amount) };
         }
 
@@ -1971,6 +2109,7 @@ namespace MintRestApi
         //paymentMethodID : the PIID of the paying PI, e.g. credit card
         //SVPIId : the 
         //account : amount of CSV to be bought
+        //paymentMethodID 和 SVPIID这都什么关系？  可以选择支付方式么？ 为什么是用csv的
         public string Purchase(string email, string paymentMethodID, string amount, string token_value)
         {
             try
@@ -2168,6 +2307,7 @@ namespace MintRestApi
         #endregion
 
         #region BTC Service
+        //从btc server得到的response
         public string BTCResponse(result res)
         {
             string exid = res.externalKey;
@@ -2186,10 +2326,12 @@ namespace MintRestApi
 
                 //test info
                 insertOrderHistory(ss, "", "", "", 0, 0, "Purchase With CSV", "Complete", "", "CSV");
-
+                
+                //result是专门为bitcoin设的数据结构，其各个member是干嘛用的？ externalKey?
                 result m = JsonConvert.DeserializeObject<result>(ss);
                 string exid = m.externalKey;
                 string status = m.status;
+                //为什么要这么写， 这么写得到BTC类型的order?
                 OrderHistory order = GetOrder("ttt", exid, "aaa");
                 if (status == "paid" && order.transtype == "Fund CSV With Bitcoin")
                 {
@@ -2362,6 +2504,7 @@ namespace MintRestApi
             return res;
         }
 
+        //是用BitCoin购买后生成的订单？！
         public Response GetPurchaseOrder(string email, string id)
         {
             // For https.
